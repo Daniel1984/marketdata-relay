@@ -1,8 +1,20 @@
 const std = @import("std");
-const nats = @import("./nats-client.zig");
+const stream = @import("./stream.zig");
 
-fn handleMessage(msg: []const u8) void {
-    std.debug.print("Received: {s}\n", .{msg});
+var last_message_time: i64 = 0;
+
+fn handleMessage(_: []const u8) void {
+    const current_time = std.time.milliTimestamp();
+
+    if (last_message_time == 0) {
+        std.debug.print("Received (first message)\n", .{});
+    } else {
+        const time_diff = current_time - last_message_time;
+        const seconds: f64 = @as(f64, @floatFromInt(time_diff)) / 1000.0;
+        std.debug.print("Received: (time since last: {d:.3}s)\n", .{seconds});
+    }
+
+    last_message_time = current_time;
 }
 
 pub fn main() !void {
@@ -10,8 +22,8 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var nc = try nats.init(allocator, .{});
-    defer nc.deinit();
+    var s = try stream.init(allocator, .{});
+    defer s.deinit();
 
-    try nc.consume(handleMessage);
+    try s.consume(handleMessage);
 }
